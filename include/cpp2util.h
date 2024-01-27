@@ -2043,6 +2043,8 @@ inline constexpr auto as_() -> decltype(auto)
 
 using cpp2::cpp2_new;
 
+#include "cpp2testing.h"
+
 
 //  Stabilize line numbers for "compatibility" static assertions that we know
 //  will fire for some compilers, to keep regression test outputs cleaner

@@ -39,6 +39,38 @@ auto parser::apply_type_metafunctions( declaration_node& n )
     );
 }
 
+auto parser::apply_function_metafunctions( declaration_node& n )
+    -> bool
+{
+    assert(n.is_function());
+	if(n.metafunctions.empty())
+		return true;
+	assert(n.metafunctions.size() == 1);
+	{ // Require that the metafunction name is 'test'
+		// from reflect.h2:1402
+		auto name = n.metafunctions[0]->to_string();
+		name = name.substr(0, name.find('<'));
+		assert(name == "test");
+	}
+	if(n.metafunctions[0]->template_arguments().size() > 0)
+	{
+		error("(experiment limitation) A test can't have template params", false);
+		return false;
+	}
+	if(n.parameter_count() > 0)
+	{
+		error("(experiment limitation) A test can't have parameters", false);
+		return false;
+	}
+	if(n.has_declared_return_type())
+	{
+		error("(experiment limitation) A test can't have a declared return type", false);
+		return false;
+	}
+	this->add_test(*n.name());
+	return true;
+}
+
 
 //-----------------------------------------------------------------------
 //

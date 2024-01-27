@@ -1589,6 +1589,28 @@ public:
             }
         }
 
+        if(parser.test_names().size() > 0) {
+			if(cpp1_filename.back() == 'h') {
+				errors.emplace_back(
+					source_position{},
+					"tests should never be on headers, move them to a cpp2 file."
+				);
+			}
+			printer.print_extra( "\n//=== Cpp2 test registry for this TU =====================================\n\n" );
+			printer.print_extra("namespace {\n");
+			auto& tests = parser.test_names();
+			int test_count = 0;
+			for(auto test : tests) {
+				std::string test_decl = "cpp2::testing::auto_reg t";
+				test_decl += std::to_string(test_count++);
+				test_decl += "(&";
+				test_decl += test;
+				test_decl += ");\n";
+				printer.print_extra(test_decl);
+			}
+			printer.print_extra("}");
+		}
+
         if (cpp1_filename.back() == 'h') {
             printer.print_extra( "\n#endif" );
         }
@@ -4694,18 +4716,35 @@ public:
             return;
         }
 
-        if (
-            is_main
-            && n.parameters->parameters.size() > 0
-            )
+        if (is_main)
         {
-            printer.print_cpp2(
-                "(int const argc_, char** argv_)",
-                n.parameters->position()
-            );
-            current_functions.back().prolog.statements.push_back(
-                "auto const args = cpp2::make_args(argc_, argv_); "
-            );
+			// Should probably be "are tests enabled?", to be able to run tests
+			// from different TUs.
+			bool const has_tests = parser.test_names().size() > 0;
+			if(n.parameters->parameters.size() > 0) {
+				printer.print_cpp2(
+					"(int const argc_, char** argv_)",
+					n.parameters->position()
+				);
+				if(has_tests) {
+					current_functions.back().prolog.statements.push_back(
+						"cpp2::testing::session::the().run(argc_, argv_); "
+					);
+				}
+				current_functions.back().prolog.statements.push_back(
+					"auto const args = cpp2::make_args(argc_, argv_); "
+				);
+			}else {
+				printer.print_cpp2(
+					"()",
+					n.parameters->position()
+				);
+				if(has_tests) {
+					current_functions.back().prolog.statements.push_back(
+						"cpp2::testing::session::the().run(0, nullptr); "
+					);
+				}
+			}
         }
         else {
             emit(*n.parameters, false, false, generating_postfix_inc_dec);

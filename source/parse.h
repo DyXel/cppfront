@@ -8064,6 +8064,21 @@ private:
     auto apply_type_metafunctions( declaration_node& decl )
         -> bool;
 
+	auto apply_function_metafunctions( declaration_node& decl )
+        -> bool;
+
+private:
+	std::vector<std::string> tests;
+public:
+	auto add_test(std::string_view test_name) -> void {
+		tests.emplace_back(test_name);
+		std::cout << "\nexperiment: adding test to registry '" << test_name << "'\n";
+	}
+
+	auto test_names() const -> std::vector<std::string> const& {
+		return tests;
+	}
+
 
     //G unnamed-declaration:
     //G     ':' meta-functions? template-parameters? function-type requires-clause? '=' statement
@@ -8272,10 +8287,19 @@ private:
             n->type = std::move(t);
             assert (n->is_function());
 
-            if (!n->metafunctions.empty()) {
+			bool bad_meta = n->metafunctions.size() > 1;
+
+			if(!bad_meta && !n->metafunctions.empty()) {
+				// from reflect.h2:1402
+				auto name = n->metafunctions[0]->to_string();
+				name = name.substr(0, name.find('<'));
+				bad_meta = name != "test";
+			}
+
+            if (bad_meta) {
                 errors.emplace_back(
                     n->metafunctions.front()->position(),
-                    "(temporary alpha limitation) metafunctions are currently not supported on functions, only on types"
+                    "(temporary alpha limitation) metafunctions are currently not supported on functions (except @test), only on types"
                 );
                 return {};
             }
@@ -8608,6 +8632,17 @@ private:
                 stmt->statement = std::move(ret);
 
                 body->statements.push_back(std::move(stmt));
+            }
+        }
+
+        //  If this is a function with a metafunction, apply those
+        if (n->is_function()) {
+            if (!apply_function_metafunctions(*n)) {
+                error(
+                    "error encountered while applying function metafunctions",
+                    false, {}, true
+                );
+                return {};
             }
         }
 
