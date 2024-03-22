@@ -39,7 +39,7 @@ class alias_declaration;
 #line 1006 "reflect.h2"
 class value_member_info;
 
-#line 1632 "reflect.h2"
+#line 1690 "reflect.h2"
 }
 
 }
@@ -763,11 +763,14 @@ auto cpp2_union(meta::type_declaration& t) -> void;
 #line 1436 "reflect.h2"
 //-----------------------------------------------------------------------
 //
-//  print - output a pretty-printed visualization of t
+//  print - output a pretty-printed visualization of t or f
 //
 auto print(cpp2::impl::in<meta::type_declaration> t) -> void;
 
-#line 1446 "reflect.h2"
+#line 1445 "reflect.h2"
+auto print(cpp2::impl::in<meta::function_declaration> f) -> void;
+
+#line 1450 "reflect.h2"
 //-----------------------------------------------------------------------
 //
 //  regex - creates regular expressions from members
@@ -784,10 +787,10 @@ auto print(cpp2::impl::in<meta::type_declaration> t) -> void;
 //
 auto regex_gen(meta::type_declaration& t) -> void;
 
-#line 1513 "reflect.h2"
+#line 1517 "reflect.h2"
 //-----------------------------------------------------------------------
 //
-//  apply_metafunctions
+//  apply_metafunctions - for types
 //
 [[nodiscard]] auto apply_metafunctions(
     declaration_node& n, 
@@ -795,7 +798,18 @@ auto regex_gen(meta::type_declaration& t) -> void;
     auto const& error
     ) -> bool;
 
-#line 1632 "reflect.h2"
+#line 1636 "reflect.h2"
+//-----------------------------------------------------------------------
+//
+//  apply_metafunctions - for functions
+//
+[[nodiscard]] auto apply_metafunctions(
+    declaration_node& n, 
+    function_declaration& rfunc, 
+    auto const& error
+    ) -> bool;
+
+#line 1690 "reflect.h2"
 }
 
 }
@@ -2093,7 +2107,13 @@ auto print(cpp2::impl::in<meta::type_declaration> t) -> void
     std::cout << CPP2_UFCS(print)(t) << "\n";
 }
 
-#line 1460 "reflect.h2"
+#line 1445 "reflect.h2"
+auto print(cpp2::impl::in<meta::function_declaration> f) -> void
+{
+    std::cout << CPP2_UFCS(print)(f) << "\n";
+}
+
+#line 1464 "reflect.h2"
 auto regex_gen(meta::type_declaration& t) -> void
 {
     auto has_default {false}; 
@@ -2146,7 +2166,7 @@ auto regex_gen(meta::type_declaration& t) -> void
     }
 }
 
-#line 1517 "reflect.h2"
+#line 1521 "reflect.h2"
 [[nodiscard]] auto apply_metafunctions(
     declaration_node& n, 
     type_declaration& rtype, 
@@ -2238,7 +2258,7 @@ auto regex_gen(meta::type_declaration& t) -> void
             regex_gen(rtype);
         }
         else {
-            error("unrecognized metafunction name: " + name);
+            error("unrecognized metafunction name: '" + name + "' for type declaration");
             error(
                 "(temporary alpha limitation) currently the supported names are: "
                 "interface, polymorphic_base, ordered, weakly_ordered, partially_ordered, "
@@ -2261,7 +2281,57 @@ auto regex_gen(meta::type_declaration& t) -> void
     return true; 
 }
 
-#line 1632 "reflect.h2"
+#line 1640 "reflect.h2"
+[[nodiscard]] auto apply_metafunctions(
+    declaration_node& n, 
+    function_declaration& rfunc, 
+    auto const& error
+    ) -> bool
+
+{
+    if (cpp2::cpp2_default.is_active() && !(CPP2_UFCS(is_function)(n)) ) { cpp2::cpp2_default.report_violation(""); }
+
+    //  For each metafunction, apply it
+    for ( 
+         auto const& meta : n.metafunctions ) 
+    {
+        //  Convert the name and any template arguments to strings
+        //  and record that in rfunc
+        auto name {CPP2_UFCS(to_string)((*cpp2::impl::assert_not_null(meta)))}; 
+        name = CPP2_UFCS(substr)(name, 0, CPP2_UFCS(find)(name, '<'));
+
+        std::vector<std::string> args {}; 
+        for ( 
+             auto const& arg : CPP2_UFCS(template_arguments)((*cpp2::impl::assert_not_null(meta))) ) 
+            CPP2_UFCS(push_back)(args, CPP2_UFCS(to_string)(arg));
+
+        CPP2_UFCS(set_metafunction_name)(rfunc, name, args);
+
+        //  Dispatch
+        //
+        if (name == "print") {
+            print(rfunc);
+        }
+        else {
+            error("unrecognized metafunction name '" + name + "' for function declaration");
+            error("(temporary alpha limitation) currently the supported names are: print");
+            return false; 
+        }
+
+        if ((
+            !(CPP2_UFCS(empty)(args)) 
+            && !(CPP2_UFCS(arguments_were_used)(rfunc)))) 
+
+        {
+            error(name + " did not use its template arguments - did you mean to write '" + name + " <" + CPP2_ASSERT_IN_BOUNDS_LITERAL(cpp2::move(args), 0) + "> ()' (with the spaces)?");
+            return false; 
+        }
+    }
+
+    return true; 
+}
+
+#line 1690 "reflect.h2"
 }
 
 }
