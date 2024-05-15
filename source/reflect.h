@@ -39,7 +39,7 @@ class alias_declaration;
 #line 1006 "reflect.h2"
 class value_member_info;
 
-#line 1582 "reflect.h2"
+#line 1605 "reflect.h2"
 }
 
 }
@@ -784,7 +784,14 @@ auto print(cpp2::impl::in<meta::type_declaration> t) -> void;
 #line 1416 "reflect.h2"
 auto print(cpp2::impl::in<meta::function_declaration> f) -> void;
 
-#line 1421 "reflect.h2"
+#line 1422 "reflect.h2"
+//-----------------------------------------------------------------------
+//
+//  meta - mark f as a metafunction and generate registration code for it
+//
+auto meta(meta::function_declaration& f) -> void;
+
+#line 1441 "reflect.h2"
 //-----------------------------------------------------------------------
 //
 //  apply_metafunctions - for types
@@ -795,7 +802,7 @@ auto print(cpp2::impl::in<meta::function_declaration> f) -> void;
     auto const& error
     ) -> bool;
 
-#line 1528 "reflect.h2"
+#line 1548 "reflect.h2"
 //-----------------------------------------------------------------------
 //
 //  apply_metafunctions - for functions
@@ -806,7 +813,7 @@ auto print(cpp2::impl::in<meta::function_declaration> f) -> void;
     auto const& error
     ) -> bool;
 
-#line 1582 "reflect.h2"
+#line 1605 "reflect.h2"
 }
 
 }
@@ -2081,7 +2088,22 @@ auto print(cpp2::impl::in<meta::function_declaration> f) -> void
     std::cout << CPP2_UFCS(print)(f) << "\n";
 }
 
-#line 1425 "reflect.h2"
+#line 1426 "reflect.h2"
+auto meta(meta::function_declaration& f) -> void
+{
+    // TODO(DyXel): Check that the function:
+    //  * has ::cpp2::meta::function_declaration as only parameter, OR,
+    //  * has ::cpp2::meta::type_declaration as only paramater, OR,
+    //  * function_declaration or type_declaration (implicitly deduced to be the above), AND,
+    //  * either in or inout paramater passing style, AND,
+    //  * to be publicly accessible, AND,
+    //  * to not be on header file, AND,
+    //  * to have void return type.
+    auto fqn {CPP2_UFCS(fully_qualified_name)(f)}; 
+    CPP2_UFCS(append_declaration_to_translation_unit)(f, ("_: namespace = { _: ::cpp2::meta::register_metafunction = (\"" + cpp2::to_string(fqn) + "\"," + cpp2::to_string(fqn) + "&); }"));
+}
+
+#line 1445 "reflect.h2"
 [[nodiscard]] auto apply_metafunctions(
     declaration_node& n, 
     type_declaration& rtype, 
@@ -2101,16 +2123,16 @@ auto print(cpp2::impl::in<meta::function_declaration> f) -> void
 
     //  For each metafunction, apply it
     for ( 
-         auto const& meta : n.metafunctions ) 
+         auto const& metafunc : n.metafunctions ) 
     {
         //  Convert the name and any template arguments to strings
         //  and record that in rtype
-        auto name {CPP2_UFCS(to_string)((*cpp2::impl::assert_not_null(meta)))}; 
+        auto name {CPP2_UFCS(to_string)((*cpp2::impl::assert_not_null(metafunc)))}; 
         name = CPP2_UFCS(substr)(name, 0, CPP2_UFCS(find)(name, '<'));
 
         std::vector<std::string> args {}; 
         for ( 
-             auto const& arg : CPP2_UFCS(template_arguments)((*cpp2::impl::assert_not_null(meta))) ) 
+             auto const& arg : CPP2_UFCS(template_arguments)((*cpp2::impl::assert_not_null(metafunc))) ) 
             CPP2_UFCS(push_back)(args, CPP2_UFCS(to_string)(arg));
 
         CPP2_UFCS(set_metafunction_name)(rtype, name, args);
@@ -2184,7 +2206,7 @@ auto print(cpp2::impl::in<meta::function_declaration> f) -> void
     return true; 
 }
 
-#line 1532 "reflect.h2"
+#line 1552 "reflect.h2"
 [[nodiscard]] auto apply_metafunctions(
     declaration_node& n, 
     function_declaration& rfunc, 
@@ -2196,30 +2218,33 @@ auto print(cpp2::impl::in<meta::function_declaration> f) -> void
 
     //  For each metafunction, apply it
     for ( 
-         auto const& meta : n.metafunctions ) 
+         auto const& metafunc : n.metafunctions ) 
     {
         //  Convert the name and any template arguments to strings
         //  and record that in rfunc
-        auto name {CPP2_UFCS(to_string)((*cpp2::impl::assert_not_null(meta)))}; 
+        auto name {CPP2_UFCS(to_string)((*cpp2::impl::assert_not_null(metafunc)))}; 
         name = CPP2_UFCS(substr)(name, 0, CPP2_UFCS(find)(name, '<'));
 
         std::vector<std::string> args {}; 
         for ( 
-             auto const& arg : CPP2_UFCS(template_arguments)((*cpp2::impl::assert_not_null(meta))) ) 
+             auto const& arg : CPP2_UFCS(template_arguments)((*cpp2::impl::assert_not_null(metafunc))) ) 
             CPP2_UFCS(push_back)(args, CPP2_UFCS(to_string)(arg));
 
         CPP2_UFCS(set_metafunction_name)(rfunc, name, args);
 
         //  Dispatch
         //
-        if (name == "print") {
+        if (name == "meta") {
+            meta(rfunc);
+        }
+        else {if (name == "print") {
             print(rfunc);
         }
         else {
             error("unrecognized metafunction name '" + name + "' for function declaration");
-            error("(temporary alpha limitation) currently the supported names are: print");
+            error("(temporary alpha limitation) currently the supported names are: meta, print");
             return false; 
-        }
+        }}
 
         if ((
             !(CPP2_UFCS(empty)(args)) 
@@ -2234,7 +2259,7 @@ auto print(cpp2::impl::in<meta::function_declaration> f) -> void
     return true; 
 }
 
-#line 1582 "reflect.h2"
+#line 1605 "reflect.h2"
 }
 
 }
